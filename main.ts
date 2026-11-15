@@ -9,6 +9,12 @@
 //   - Momentum exhaustion (entry): the close sits at least 1.1% below EMA(48), RSI(14)
 //     is at or under 30, and the 60-bar return is under -1%: a fast, deep, oversold
 //     drop, not a slow drift. The signal must hold on the bar it fires on.
+//   - Confirmation (entry): the signal bar must close ABOVE the previous bar's
+//     close. A dip that is still falling bar after bar keeps falling: the first
+//     trade of the dev window fired on RSI 7 with the tape still sliding and
+//     never bounced at all (peak after entry +0.02%), dying on the stop for
+//     -7.76 USDC. Waiting for one green close skips that knife-catch and keeps
+//     only the bounce that actually turned. It costs at most one bar of the move.
 //   - Volatility regime (entry): ATR(14) / price must sit inside [0.05%, 0.40%]. Below
 //     the band the tape is too flat to pay the round trip; above it the tape is in
 //     panic chop where dip-buys keep catching falling knives.
@@ -183,6 +189,10 @@ await runBars({
     if ((slow.value - c) / slow.value < DIP) return [];
     if (r > RSI_MAX) return [];
     if (closes.length > RETURN_BARS && c >= closes[closes.length - 1 - RETURN_BARS] * (1 + DROP)) return [];
+    // Confirmation: the dip must have paused — this bar closes above the
+    // previous bar's close. closes[] already holds this bar (pushBar ran above),
+    // so the previous close is the second-to-last entry.
+    if (closes.length < 2 || c <= closes[closes.length - 2]) return [];
 
     // ATR-based sizing: full $400 stake at ATR_FULL, half when twice as wild.
     const scale = Math.max(0.5, Math.min(1.0, ATR_FULL / atrPct));
